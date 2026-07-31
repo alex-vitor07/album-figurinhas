@@ -3,7 +3,7 @@
 // Quando o frontend for servido pelo FastAPI (Dia 3), a API está
 // no mesmo servidor — usamos uma URL relativa ou o endereço completo.
 // ===================================================
-const API_BASE_URL = "https://meu-projeto-api-w5z9.onrender.com/figurinhas";
+const API_BASE_URL = "https://meu-projeto-api-w5z9.onrender.com/";
 
 // ===================================================
 // FUNÇÃO: Preenche os slots do álbum com imagens da API
