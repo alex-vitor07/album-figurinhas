@@ -4,7 +4,7 @@ Aplicação Full-Stack desenvolvida para listagem e exibição de figurinhas de 
 
 ## 🔗 Links de Produção (Live Demo)
 
-- 🌐 **Aplicação Web (Frontend):** [https://album-figurinhas-psi.vercel.app/](https://seu-projeto.vercel.app)
+- 🌐 **Aplicação Web (Frontend):** [https://album-figurinhas-psi.vercel.app/]
 - ⚡ **API Rest (Backend):** [https://meu-projeto-api-w5z9.onrender.com/figurinhas](https://meu-projeto-api-w5z9.onrender.com/figurinhas)
 - 📖 **Documentação Interativa (Swagger):** [https://meu-projeto-api-w5z9.onrender.com/docs](https://meu-projeto-api-w5z9.onrender.com/docs)
 
