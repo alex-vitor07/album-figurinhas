@@ -1,0 +1,25 @@
+# Ambientes Virtuais (ignora em qualquer subpasta, como backend/venv)
+**/venv/
+**/.venv/
+**/env/
+**/ENV/
+
+# Cache e compilação do Python
+**/__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Arquivos de variáveis de ambiente e segredos
+.env
+*.env
+
+# Editores de código e Agentes de IA (VS Code / Copilot)
+.vscode/
+.copilot/
+*.log
+
+# Arquivos temporários do Sistema Operacional
+.DS_Store
+Thumbs.db
+desktop.ini
