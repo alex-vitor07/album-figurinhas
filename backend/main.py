@@ -9,20 +9,31 @@ app = FastAPI()
 PASTA_BASE = os.path.dirname(os.path.abspath(__file__))
 PASTA_IMAGENS = os.path.join(PASTA_BASE, "figurinhas")
 
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI()
+
+# ===================================================
+# CONFIGURAÇÃO DE CORS
+# ===================================================
+# Define quais origens externas têm permissão para acessar esta API
 origins = [
-    "http://localhost:5500",        # Live Server do VS Code
-    "http://127.0.0.1:5500",      # Live Server (IP)
-    "http://localhost:3000",        # Servidores de dev (React/Vite, etc)
-    "https://album-figurinhas-psi.vercel.app/"  # URL do seu frontend em produção na Vercel
+    "https://album-figurinhas-psi.vercel.app/",  # Substitua pela URL exata do seu frontend na Vercel
+    "http://localhost:5500",          # Live Server local (VS Code)
+    "http://127.0.0.1:5500",
+    "*"                              # Permite qualquer origem (utilizar em ambiente de desenvolvimento/testes)
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,         # Quem pode acessar
+    allow_origins=["*"],             # Em produção, substitua ["*"] pela lista `origins` com seu domínio Vercel
     allow_credentials=True,
-    allow_methods=["*"],           # Libera GET, POST, PUT, DELETE, etc.
-    allow_headers=["*"],           # Libera envio de cabeçalhos customizados
+    allow_methods=["*"],             # Permite GET, POST, PUT, DELETE, OPTIONS, etc.
+    allow_headers=["*"],             # Permite todos os cabeçalhos personalizados no Request
 )
+
+# ... restante das suas rotas e configurações do FastAPI
 
 figurinhas = [
     {
