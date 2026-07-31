@@ -9,12 +9,19 @@ app = FastAPI()
 PASTA_BASE = os.path.dirname(os.path.abspath(__file__))
 PASTA_IMAGENS = os.path.join(PASTA_BASE, "figurinhas")
 
+origins = [
+    "http://localhost:5500",        # Live Server do VS Code
+    "http://127.0.0.1:5500",      # Live Server (IP)
+    "http://localhost:3000",        # Servidores de dev (React/Vite, etc)
+    "https://album-figurinhas-psi.vercel.app/"  # URL do seu frontend em produção na Vercel
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,         # Quem pode acessar
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["*"],           # Libera GET, POST, PUT, DELETE, etc.
+    allow_headers=["*"],           # Libera envio de cabeçalhos customizados
 )
 
 figurinhas = [
