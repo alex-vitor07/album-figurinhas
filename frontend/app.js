@@ -1,13 +1,10 @@
 // ===================================================
 // CONFIGURAÇÃO DA API
-// Quando o frontend for servido pelo FastAPI (Dia 3), a API está
-// no mesmo servidor — usamos uma URL relativa ou o endereço completo.
 // ===================================================
 const API_BASE_URL = "https://meu-projeto-api-w5z9.onrender.com";
 
 // ===================================================
 // FUNÇÃO: Preenche os slots do álbum com imagens da API
-// Esta função é chamada após o álbum ser inicializado.
 // ===================================================
 async function preencherFigurinhas() {
     try {
@@ -22,7 +19,6 @@ async function preencherFigurinhas() {
         const figurinhas = await response.json();
 
         // 3. Cria um Map de id → figurinha para lookup rápido
-        //    Ex: 1 → { id: 1, nome: "Alan Turing", imagem_url: "/imgs/01-alan-turing.jpg" }
         const porId = new Map(figurinhas.map(f => [f.id, f]));
 
         // 4. Percorre todos os slots do HTML
@@ -55,11 +51,10 @@ async function preencherFigurinhas() {
 
     } catch (erro) {
         console.warn("⚠️  Não foi possível conectar à API do backend:", erro.message);
-        console.info("ℹ️  Inicie o servidor: cd backend/dia-3 && uvicorn main:app --reload");
     }
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
     const bookElement = document.getElementById("book");
     const btnPrev = document.getElementById("btn-prev");
     const btnNext = document.getElementById("btn-next");
@@ -73,24 +68,27 @@ document.addEventListener("DOMContentLoaded", () => {
     // 1. Initialize St.PageFlip
     try {
         pageFlip = new St.PageFlip(bookElement, {
-            width: 550, // Base page width
-            height: 800, // Base page height
+            width: 550,
+            height: 800,
             size: "stretch",
             minWidth: 315,
             maxWidth: 1000,
             minHeight: 420,
             maxHeight: 1350,
             drawShadow: true,
-            maxShadowOpacity: 0.4, // Aumenta levemente contraste da sombra
+            maxShadowOpacity: 0.4,
             showCover: true,
             mobileScrollSupport: true,
-            useMouseEvents: false, // Desativa gestos padrão do StPageFlip para evitar cliques indesejados nas bordas/páginas
-            showPageCorners: false, // Remove dobras dos cantos no hover
-            disableFlipByClick: true, // Garante que a virada por cliques simples esteja desativada
-            flippingTime: 800 // Transição mais ágil e snappier (800ms em vez de 1000ms)
+            useMouseEvents: false,
+            showPageCorners: false,
+            disableFlipByClick: true,
+            flippingTime: 800
         });
 
-        // Load pages from HTML
+        // 2. BUSCA AS FIGURINHAS PRIMEIRO (Preenche o DOM com as tags <img>)
+        await preencherFigurinhas();
+
+        // 3. INICIALIZA AS PÁGINAS NO PAGEFLIP SOMENTE APÓS O DOM ESTAR COMPLETO
         pageFlip.loadFromHTML(document.querySelectorAll(".page"));
 
         // Estado de arraste personalizado
@@ -122,7 +120,7 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         });
 
-        // Executa o movimento de dobra apenas se o mouse/dedo se mover além de um limiar (threshold)
+        // Executa o movimento de dobra apenas se o mouse/dedo se mover além de um limiar
         const handleMove = (clientX, clientY, isTouch = false) => {
             if (!isClicking || !activeDragPage) return;
             
@@ -132,24 +130,21 @@ document.addEventListener("DOMContentLoaded", () => {
             
             const bookRect = bookElement.getBoundingClientRect();
 
-            // Só ativa o flip se mover mais de 10px (evita disparar ao clicar e soltar estático)
             if (distance > 10 && !dragStarted) {
                 dragStarted = true;
                 let cornerX, cornerY;
                 
-                // Determina canto vertical (topo vs base) em coordenadas relativas ao livro
                 const centerY = bookRect.top + bookRect.height / 2;
                 if (startY < centerY) {
-                    cornerY = 0; // Canto superior
+                    cornerY = 0;
                 } else {
-                    cornerY = bookRect.height; // Canto inferior
+                    cornerY = bookRect.height;
                 }
 
-                // Determina canto horizontal (direita vs esquerda) em coordenadas relativas ao livro
                 if (activeDragPage.index % 2 === 0) {
-                    cornerX = bookRect.width; // Canto direito
+                    cornerX = bookRect.width;
                 } else {
-                    cornerX = 0; // Canto esquerdo
+                    cornerX = 0;
                 }
                 
                 document.body.classList.add("dragging");
@@ -200,12 +195,8 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
 
-        // Show book after successful initialization
+        // Exibe o livro
         bookElement.style.display = "block";
-
-        // Dia 3: Busca as figurinhas da API e preenche o álbum
-        // A função é async, chamamos sem await para não bloquear a inicialização do álbum
-        preencherFigurinhas();
 
     } catch (error) {
         console.error("Erro ao inicializar a biblioteca PageFlip:", error);
@@ -220,51 +211,41 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!AudioContext) return;
 
             const audioCtx = new AudioContext();
-            const duration = 0.45; // seconds
+            const duration = 0.45;
             const sampleRate = audioCtx.sampleRate;
             const bufferSize = sampleRate * duration;
             const buffer = audioCtx.createBuffer(1, bufferSize, sampleRate);
             const data = buffer.getChannelData(0);
 
-            // Synthesize white noise with a custom page-flip volume envelope
             for (let i = 0; i < bufferSize; i++) {
                 const progress = i / bufferSize;
-                // Noise value between -1 and 1
                 const noise = Math.random() * 2 - 1;
 
-                // Volume envelope: smooth curve that peaks around 30% of the duration
                 let envelope = 0;
                 if (progress < 0.3) {
-                    envelope = progress / 0.3; // Rapid ramp up
+                    envelope = progress / 0.3;
                 } else {
-                    envelope = (1 - progress) / 0.7; // Smooth decay
+                    envelope = (1 - progress) / 0.7;
                 }
 
-                // Add minor irregular spikes to simulate paper friction/crackle
                 const paperCrackle = Math.random() > 0.985 ? (Math.random() * 2 - 1) * 0.35 : 0;
-
                 data[i] = (noise * 0.65 + paperCrackle) * envelope * 0.12;
             }
 
-            // Create nodes
             const noiseNode = audioCtx.createBufferSource();
             noiseNode.buffer = buffer;
 
-            // Bandpass filter to extract the "whoosh" sound of paper shuffling
             const bandpassFilter = audioCtx.createBiquadFilter();
             bandpassFilter.type = "bandpass";
             bandpassFilter.Q.value = 2.0;
 
-            // Dynamic frequency sweep: starts at 1500Hz, sweeps down to 350Hz (sound of page moving away)
             bandpassFilter.frequency.setValueAtTime(1500, audioCtx.currentTime);
             bandpassFilter.frequency.exponentialRampToValueAtTime(350, audioCtx.currentTime + duration);
 
-            // Lowpass filter to remove harsh high-frequency digital artifacts
             const lowpassFilter = audioCtx.createBiquadFilter();
             lowpassFilter.type = "lowpass";
             lowpassFilter.frequency.setValueAtTime(3800, audioCtx.currentTime);
 
-            // Connect graph: Source -> Bandpass -> Lowpass -> Destination
             noiseNode.connect(bandpassFilter);
             bandpassFilter.connect(lowpassFilter);
             lowpassFilter.connect(audioCtx.destination);
@@ -289,26 +270,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // 4. Navigation controls and events
     if (pageFlip) {
-        // Play turn sound when page starts flipping
         pageFlip.on("changeState", (e) => {
             if (e.data === "flipping") {
                 playPaperTurnSound();
             }
         });
 
-        // Discrete arrow toggle depending on current page
         pageFlip.on("flip", (e) => {
             const currentPage = e.data;
             const totalPages = pageFlip.getPageCount();
 
-            // Hide left button on cover page
             if (currentPage === 0) {
                 btnPrev.classList.add("hidden");
             } else {
                 btnPrev.classList.remove("hidden");
             }
 
-            // Hide right button on back cover
             if (currentPage === totalPages - 1) {
                 btnNext.classList.add("hidden");
             } else {
@@ -316,7 +293,6 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
 
-        // Click events for navigational arrows
         btnPrev.addEventListener("click", () => {
             pageFlip.flipPrev();
         });
@@ -325,7 +301,6 @@ document.addEventListener("DOMContentLoaded", () => {
             pageFlip.flipNext();
         });
 
-        // Keyboard events for navigational arrows
         document.addEventListener("keydown", (e) => {
             if (e.key === "ArrowLeft") {
                 pageFlip.flipPrev();
@@ -334,7 +309,6 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
 
-        // Hide left button initially since start page is 0
         btnPrev.classList.add("hidden");
     }
 });
