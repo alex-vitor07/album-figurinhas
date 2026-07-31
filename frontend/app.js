@@ -8,65 +8,75 @@ const API_BASE_URL = "https://meu-projeto-api-w5z9.onrender.com";
 // ===================================================
 async function preencherFigurinhas() {
     try {
-        // 1. Busca as figurinhas disponíveis na API
         const response = await fetch(`${API_BASE_URL}/figurinhas`);
 
         if (!response.ok) {
-            throw new Error(`Erro na API: ${response.status} ${response.statusText}`);
+            throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
         }
 
-        // 2. Converte o JSON em array JavaScript
         const figurinhas = await response.json();
 
-        // 3. Cria um Map de id → figurinha para lookup rápido
-        const porId = new Map(figurinhas.map(f => [f.id, f]));
+        // Mapeamento numérico garantido
+        const porId = new Map(figurinhas.map(f => [Number(f.id), f]));
 
-        // 4. Percorre todos os slots do HTML
+        // Seleção dos slots presentes no DOM
         const slots = document.querySelectorAll(".sticker-slot");
 
-        for (const slot of slots) {
+        slots.forEach(slot => {
             const slotNumeroEl = slot.querySelector(".slot-number");
-            if (!slotNumeroEl) continue;
+            if (!slotNumeroEl) return;
 
-            // Extrai o número do slot: "#01" → 1
-            const id = parseInt(slotNumeroEl.textContent.replace("#", ""), 10);
+            // Extrai apenas os dígitos numéricos (imune a espaços, quebras de linha e o caractere #)
+            const match = slotNumeroEl.textContent.match(/\d+/);
+            if (!match) return;
 
-            if (!porId.has(id)) continue;
+            const id = parseInt(match[0], 10);
+            if (!porId.has(id)) return;
 
-            // A figurinha existe: insere a imagem
             const figurinha = porId.get(id);
 
-            const img = document.createElement("img");
-            img.src = `${API_BASE_URL}${figurinha.imagem_url}`;
-            img.alt = figurinha.nome;
-            img.className = "sticker-img";
+            // Previne inserção duplicada caso a função seja reexecutada
+            if (slot.querySelector(".sticker-img")) return;
 
-            img.onload = () => slot.classList.add("slot-preenchido");
-            img.onerror = () => console.warn(`Imagem não encontrada: ${figurinha.nome}`);
+            const img = document.createElement("img");
+            img.className = "sticker-img";
+            img.alt = figurinha.nome;
+
+            // Handlers definidos ANTES da atribuição do src (evita race condition)
+            img.onload = () => {
+                slot.classList.add("slot-preenchido");
+            };
+
+            img.onerror = () => {
+                console.warn(`[API] Falha ao carregar a imagem da figurinha ID ${id}: ${figurinha.nome}`);
+            };
+
+            // Concatenação estrita: Domínio Base + Rota Relativa da Imagem
+            img.src = `${API_BASE_URL}${figurinha.imagem_url}`;
 
             slot.insertBefore(img, slot.firstChild);
-        }
+        });
 
-        console.log(`✅ ${figurinhas.length} figurinhas carregadas da API!`);
+        console.log(`✅ [API] ${figurinhas.length} figurinhas processadas com sucesso.`);
 
     } catch (erro) {
-        console.warn("⚠️  Não foi possível conectar à API do backend:", erro.message);
+        console.error("⚠️ [API] Erro durante a integração com o backend:", erro.message);
     }
 }
 
-document.addEventListener("DOMContentLoaded", async () => {
+document.addEventListener("DOMContentLoaded", () => {
     const bookElement = document.getElementById("book");
     const btnPrev = document.getElementById("btn-prev");
     const btnNext = document.getElementById("btn-next");
     const soundToggle = document.getElementById("sound-toggle");
-    const iconOn = soundToggle.querySelector(".sound-icon-on");
-    const iconOff = soundToggle.querySelector(".sound-icon-off");
+    const iconOn = soundToggle?.querySelector(".sound-icon-on");
+    const iconOff = soundToggle?.querySelector(".sound-icon-off");
 
     let isMuted = false;
     let pageFlip = null;
 
-    // 1. Initialize St.PageFlip
     try {
+        // 1. Inicializa o StPageFlip imediatamente para garantir a renderização da interface
         pageFlip = new St.PageFlip(bookElement, {
             width: 550,
             height: 800,
@@ -85,20 +95,19 @@ document.addEventListener("DOMContentLoaded", async () => {
             flippingTime: 800
         });
 
-        // 2. BUSCA AS FIGURINHAS PRIMEIRO (Preenche o DOM com as tags <img>)
-        await preencherFigurinhas();
-
-        // 3. INICIALIZA AS PÁGINAS NO PAGEFLIP SOMENTE APÓS O DOM ESTAR COMPLETO
         pageFlip.loadFromHTML(document.querySelectorAll(".page"));
+        bookElement.style.display = "block";
 
-        // Estado de arraste personalizado
+        // 2. Chama o preenchimento das figurinhas de forma assíncrona (não bloqueante)
+        preencherFigurinhas();
+
+        // 3. Lógica de manipulação de gestos / arraste
         let activeDragPage = null;
         let isClicking = false;
         let startX = 0;
         let startY = 0;
         let dragStarted = false;
 
-        // Monitora o mousedown/touchstart em cada página para iniciar a intenção de arraste
         document.querySelectorAll(".page").forEach((page, index) => {
             page.addEventListener("mousedown", (e) => {
                 if (e.target.closest("button") || e.target.closest("a")) return;
@@ -120,7 +129,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
         });
 
-        // Executa o movimento de dobra apenas se o mouse/dedo se mover além de um limiar
         const handleMove = (clientX, clientY, isTouch = false) => {
             if (!isClicking || !activeDragPage) return;
             
@@ -135,17 +143,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 let cornerX, cornerY;
                 
                 const centerY = bookRect.top + bookRect.height / 2;
-                if (startY < centerY) {
-                    cornerY = 0;
-                } else {
-                    cornerY = bookRect.height;
-                }
-
-                if (activeDragPage.index % 2 === 0) {
-                    cornerX = bookRect.width;
-                } else {
-                    cornerX = 0;
-                }
+                cornerY = (startY < centerY) ? 0 : bookRect.height;
+                cornerX = (activeDragPage.index % 2 === 0) ? bookRect.width : 0;
                 
                 document.body.classList.add("dragging");
                 pageFlip.startUserTouch({ x: cornerX, y: cornerY });
@@ -171,38 +170,22 @@ document.addEventListener("DOMContentLoaded", async () => {
             document.body.classList.remove("dragging");
         };
 
-        window.addEventListener("mousemove", (e) => {
-            handleMove(e.clientX, e.clientY, false);
-        });
-
+        window.addEventListener("mousemove", (e) => handleMove(e.clientX, e.clientY, false));
         window.addEventListener("touchmove", (e) => {
-            if (e.touches.length > 0) {
-                const touch = e.touches[0];
-                handleMove(touch.clientX, touch.clientY, true);
-            }
+            if (e.touches.length > 0) handleMove(e.touches[0].clientX, e.touches[0].clientY, true);
         });
 
-        window.addEventListener("mouseup", (e) => {
-            handleRelease(e.clientX, e.clientY, false);
-        });
-
+        window.addEventListener("mouseup", (e) => handleRelease(e.clientX, e.clientY, false));
         window.addEventListener("touchend", (e) => {
             const touch = e.changedTouches[0] || e.touches[0];
-            if (touch) {
-                handleRelease(touch.clientX, touch.clientY, true);
-            } else {
-                handleRelease(startX, startY, true);
-            }
+            handleRelease(touch ? touch.clientX : startX, touch ? touch.clientY : startY, true);
         });
 
-        // Exibe o livro
-        bookElement.style.display = "block";
-
     } catch (error) {
-        console.error("Erro ao inicializar a biblioteca PageFlip:", error);
+        console.error("Erro ao inicializar biblioteca StPageFlip:", error);
     }
 
-    // 2. Sound Effect Generator (Web Audio API)
+    // 4. Síntese do Som de Folhear (Web Audio API)
     function playPaperTurnSound() {
         if (isMuted) return;
 
@@ -220,14 +203,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             for (let i = 0; i < bufferSize; i++) {
                 const progress = i / bufferSize;
                 const noise = Math.random() * 2 - 1;
-
-                let envelope = 0;
-                if (progress < 0.3) {
-                    envelope = progress / 0.3;
-                } else {
-                    envelope = (1 - progress) / 0.7;
-                }
-
+                const envelope = (progress < 0.3) ? (progress / 0.3) : ((1 - progress) / 0.7);
                 const paperCrackle = Math.random() > 0.985 ? (Math.random() * 2 - 1) * 0.35 : 0;
                 data[i] = (noise * 0.65 + paperCrackle) * envelope * 0.12;
             }
@@ -238,7 +214,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             const bandpassFilter = audioCtx.createBiquadFilter();
             bandpassFilter.type = "bandpass";
             bandpassFilter.Q.value = 2.0;
-
             bandpassFilter.frequency.setValueAtTime(1500, audioCtx.currentTime);
             bandpassFilter.frequency.exponentialRampToValueAtTime(350, audioCtx.currentTime + duration);
 
@@ -252,63 +227,43 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             noiseNode.start();
         } catch (e) {
-            console.warn("Falha ao tocar som de virada de página:", e);
+            console.warn("Falha ao reproduzir áudio:", e);
         }
     }
 
-    // 3. Audio State Controls
-    soundToggle.addEventListener("click", () => {
-        isMuted = !isMuted;
-        if (isMuted) {
-            iconOn.classList.add("hidden");
-            iconOff.classList.remove("hidden");
-        } else {
-            iconOn.classList.remove("hidden");
-            iconOff.classList.add("hidden");
-        }
-    });
+    // 5. Controles de Áudio
+    if (soundToggle) {
+        soundToggle.addEventListener("click", () => {
+            isMuted = !isMuted;
+            if (iconOn && iconOff) {
+                iconOn.classList.toggle("hidden", isMuted);
+                iconOff.classList.toggle("hidden", !isMuted);
+            }
+        });
+    }
 
-    // 4. Navigation controls and events
+    // 6. Controles de Navegação
     if (pageFlip) {
         pageFlip.on("changeState", (e) => {
-            if (e.data === "flipping") {
-                playPaperTurnSound();
-            }
+            if (e.data === "flipping") playPaperTurnSound();
         });
 
         pageFlip.on("flip", (e) => {
             const currentPage = e.data;
             const totalPages = pageFlip.getPageCount();
 
-            if (currentPage === 0) {
-                btnPrev.classList.add("hidden");
-            } else {
-                btnPrev.classList.remove("hidden");
-            }
-
-            if (currentPage === totalPages - 1) {
-                btnNext.classList.add("hidden");
-            } else {
-                btnNext.classList.remove("hidden");
-            }
+            if (btnPrev) btnPrev.classList.toggle("hidden", currentPage === 0);
+            if (btnNext) btnNext.classList.toggle("hidden", currentPage === totalPages - 1);
         });
 
-        btnPrev.addEventListener("click", () => {
-            pageFlip.flipPrev();
-        });
-
-        btnNext.addEventListener("click", () => {
-            pageFlip.flipNext();
-        });
+        if (btnPrev) btnPrev.addEventListener("click", () => pageFlip.flipPrev());
+        if (btnNext) btnNext.addEventListener("click", () => pageFlip.flipNext());
 
         document.addEventListener("keydown", (e) => {
-            if (e.key === "ArrowLeft") {
-                pageFlip.flipPrev();
-            } else if (e.key === "ArrowRight") {
-                pageFlip.flipNext();
-            }
+            if (e.key === "ArrowLeft") pageFlip.flipPrev();
+            if (e.key === "ArrowRight") pageFlip.flipNext();
         });
 
-        btnPrev.classList.add("hidden");
+        if (btnPrev) btnPrev.classList.add("hidden");
     }
 });
